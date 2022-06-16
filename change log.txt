@@ -1,1 +1,20 @@
-0.02 change log: not out yet
+0.02 change log:
+
+renamed:
+some stuff in the oyvey.java
+Burrow (cringe) to: Burrow (no work) 
+AntiDbear to: HoleFiller. (temp name)
+Future's is better(autocrystal) to: use futures's (ca)
+UseWhenBeingFacePlaced to: AntiFaceplace
+
+changed:
+watermark to 0.02
+file loctation (so now it doesn't save in oyvey it saves in its own folder :O)
+totem pop counter to" Command.sendMessage(ChatFormatting.RED + player.getName() + " died after popping " + ChatFormatting.GREEN + l_Count + ChatFormatting.RED + " Totems thanks to ChickenWings.cc!😎"
+
+fixed: 
+modid 
+
+
+todo in next update: 
+make suffix
