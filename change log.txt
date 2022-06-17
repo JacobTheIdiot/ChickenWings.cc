@@ -1,20 +1,22 @@
-0.02 change log:
+0.03 change log:
+
+added:
+tried to add sprint but somehow added a float module thingy?
+AutoWalk
+AutoWalk2
+Modules module (says all the modules)
 
 renamed:
-some stuff in the oyvey.java
-Burrow (cringe) to: Burrow (no work) 
-AntiDbear to: HoleFiller. (temp name)
-Future's is better(autocrystal) to: use futures's (ca)
-UseWhenBeingFacePlaced to: AntiFaceplace
+Use future's (ca) to: Oyvey CA. (gonna add a NEW ca soon)
+MCF (you wont use you have no friends) to: MCF. (temp name)
 
 changed:
-watermark to 0.02
-file loctation (so now it doesn't save in oyvey it saves in its own folder :O)
-totem pop counter to" Command.sendMessage(ChatFormatting.RED + player.getName() + " died after popping " + ChatFormatting.GREEN + l_Count + ChatFormatting.RED + " Totems thanks to ChickenWings.cc!😎"
+watermark to ChickenWings.cc v0.03
 
-fixed: 
-modid 
+fixed:
+fakeplayer
+modid version thingy (it said "0.01 (0.02)") now it says 0.03
 
-
-todo in next update: 
-make suffix
+todo in 0.04:
+Suffix module
+a REAL sprint
