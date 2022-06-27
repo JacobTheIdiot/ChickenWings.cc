@@ -1,5 +1,5 @@
 # ChickenWings.cc
-back from vaction and working on update :D
+0.04 OUT!!!!! note: IDK HOW TO PROPERLY SET UP A GITHUB THING TO SHOW THE SRC ON THE HOME PADGE THING OR WHATEVER SO DM JC9606#0153 IF YOU CAN HELP THANKS
 
 1.12.2 client that i skided from oyvey as of right now its just an oyvey rename might change in the future might not.
 its clean feel free to check src 
