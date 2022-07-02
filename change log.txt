@@ -1,29 +1,11 @@
-0.04 change log:
-
-note: im too stupid to add a suffix module so someone help me
+0.05 change log
 
 added:
-Sprint (finally)
-new moduleds in modules module (thats a lot of typing module)
-chatsuffix module (but it doesn't work dm JC9606#0153 if you can help)
-discord command (sends you discord link in chat) (https://discord.gg/fK5VhVY7gU)
-OffhandRewrite (not coded by me!!!!!!!!!!!!  https://github.com/M3gaPixel/Perry-Phobos-1.9.0-Buildable-OLDLEAK)
-Notifications
-
-
-renamed:
-HoleFiller to: "AntiAntiSurround" (very funny name i know!!!!!!!!!!!!)
-
-changed:
-watermark to ChickenWings.cc v0.04
-the AntiAntiHoleFill in modules module
-client prefix to default+
-some stuff in Surround (messing with settings to see if i can make it better)
+discord rpc!!!!!
+noslow
+ChatSuffix :O
 
 fixed:
- 
+scaffold
 
-todo in 0.05:
-get someone to help me code suffix 
-skid ca
-fix burrow
+
