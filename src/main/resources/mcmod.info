@@ -1,0 +1,17 @@
+[
+  {
+    "modid": "cw.cc",
+    "name": "ChickenWings.cc",
+    "description": "1.12.2 Anarchy PvP Client",
+    "version": "0.04",
+    "mcversion": "1.12.2",
+    "logoFile": "ChickenWings.cc.png",
+    "url": "https://discord.gg/Z2tMGdyrHx",
+    "updateUrl": "",
+    "authorList": [
+      "JacobTheIdiot"
+    ],
+    "screenshots": [],
+    "dependencies": []
+  }
+]
