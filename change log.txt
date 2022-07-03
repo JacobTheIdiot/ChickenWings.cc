@@ -3,7 +3,7 @@
 added:
 discord rpc!!!!!
 noslow
-ChatSuffix :O
+ChatSuffix :O (OKAY I TAKE IT BACK CHAT SUFFIX DOESN'T WORK I SHOULD HAVE TESTED IT)
 
 fixed:
 scaffold
