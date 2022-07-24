@@ -2,7 +2,7 @@
 0.05 OUT!!!!! 
 
 
-okay no updates for a little cuz im focusing on bearware sorry
+sorry for no updates, i will work on update when i release bearware update
 
 1.12.2 client that i skided from oyvey as of right now its just an oyvey rename might change in the future might not.
 its clean feel free to check src 
