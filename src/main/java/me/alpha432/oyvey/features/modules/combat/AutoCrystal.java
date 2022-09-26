@@ -313,7 +313,7 @@ public class CrystalAura
             }
             this.realTarget = this.target;
             if (AutoGG.getINSTANCE().isOn()) {
-                AutoGG autoGG = (AutoGG) Quantum.moduleManager.getModuleByName("AutoGG");
+                AutoGG autoGG = (AutoGG) OyVey.moduleManager.getModuleByName("AutoGG");
                 autoGG.addTargetedPlayer(this.target.getName());
             }
             if (this.hotBarSlot != -1 && this.switchMode.getValue() == SwitchMode.Normal) {
@@ -462,7 +462,7 @@ public class CrystalAura
     EntityPlayer getTarget() {
         EntityPlayer closestPlayer = null;
         for (EntityPlayer entity : CrystalAura.mc.world.playerEntities) {
-            if (CrystalAura.mc.player == null || CrystalAura.mc.player.isDead || entity.isDead || entity == CrystalAura.mc.player || Quantum.friendManager.isFriend(entity.getName()) || entity.getDistance(CrystalAura.mc.player) > 12.0f)
+            if (CrystalAura.mc.player == null || CrystalAura.mc.player.isDead || entity.isDead || entity == CrystalAura.mc.player || OyVey.friendManager.isFriend(entity.getName()) || entity.getDistance(CrystalAura.mc.player) > 12.0f)
                 continue;
             this.armorTarget = false;
             for (ItemStack is : entity.getArmorInventoryList()) {
