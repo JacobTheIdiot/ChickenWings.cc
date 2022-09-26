@@ -36,7 +36,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class AutoCrystal
+public class CrystalAura
         extends Module {
     private final Timer placeTimer = new Timer();
     private final Timer breakTimer = new Timer();
