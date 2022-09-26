@@ -42,26 +42,24 @@ public class AutoCrystal
     private final Timer breakTimer = new Timer();
     private final Timer preditTimer = new Timer();
     private final Timer manualTimer = new Timer();
-    private final Setting<Integer> attackFactor = this.register(new Setting<Integer>("PredictDelay", 0, 0, 200));
-    private final Setting<Integer> red = this.register(new Setting<Integer>("Red", 0, 0, 255));
-    private final Setting<Integer> green = this.register(new Setting<Integer>("Green", 255, 0, 255));
-    private final Setting<Integer> blue = this.register(new Setting<Integer>("Blue", 0, 0, 255));
-    private final Setting<Integer> alpha = this.register(new Setting<Integer>("Alpha", 255, 0, 255));
-    private final Setting<Integer> boxAlpha = this.register(new Setting<Integer>("BoxAlpha", 125, 0, 255));
-    private final Setting<Float> lineWidth = this.register(new Setting<Float>("LineWidth", Float.valueOf(1.0f), Float.valueOf(0.1f), Float.valueOf(5.0f)));
     public Setting<Boolean> place = this.register(new Setting<Boolean>("Place", true));
+    public Setting<Boolean> fastplace = this.register(new Setting<Boolean>("NoDelayPlace", true));
     public Setting<Float> placeDelay = this.register(new Setting<Float>("PlaceDelay", Float.valueOf(4.0f), Float.valueOf(0.0f), Float.valueOf(300.0f)));
     public Setting<Float> placeRange = this.register(new Setting<Float>("PlaceRange", Float.valueOf(4.0f), Float.valueOf(0.1f), Float.valueOf(7.0f)));
+    public Setting<Float> placeWallRange = this.register(new Setting<Float>("PlaceWallRange", Float.valueOf(4.0f), Float.valueOf(0.1f), Float.valueOf(7.0f)));
     public Setting<Boolean> explode = this.register(new Setting<Boolean>("Break", true));
+    public Setting<FastMode> fastMode = this.register(new Setting<FastMode>("Fast", FastMode.Ignore));
     public Setting<Boolean> packetBreak = this.register(new Setting<Boolean>("PacketBreak", true));
+    public Setting<AWMode> awMode = this.register(new Setting<AWMode>("AntiWeakness", AWMode.Normal));
     public Setting<Boolean> predicts = this.register(new Setting<Boolean>("Predict", true));
+    private final Setting<Integer> attackFactor = this.register(new Setting<Integer>("PredictDelay", 0, 0, 200));
     public Setting<Boolean> rotate = this.register(new Setting<Boolean>("Rotate", true));
     public Setting<Float> breakDelay = this.register(new Setting<Float>("BreakDelay", Float.valueOf(4.0f), Float.valueOf(0.0f), Float.valueOf(300.0f)));
     public Setting<Float> breakRange = this.register(new Setting<Float>("BreakRange", Float.valueOf(4.0f), Float.valueOf(0.1f), Float.valueOf(7.0f)));
     public Setting<Float> breakWallRange = this.register(new Setting<Float>("BreakWallRange", Float.valueOf(4.0f), Float.valueOf(0.1f), Float.valueOf(7.0f)));
     public Setting<Boolean> opPlace = this.register(new Setting<Boolean>("1.13 Place", true));
     public Setting<Boolean> suicide = this.register(new Setting<Boolean>("AntiSuicide", true));
-    public Setting<Boolean> autoswitch = this.register(new Setting<Boolean>("AutoSwitch", true));
+    public Setting<SwitchMode> switchMode = this.register(new Setting<SwitchMode>("Switch", SwitchMode.None));
     public Setting<Boolean> ignoreUseAmount = this.register(new Setting<Boolean>("IgnoreUseAmount", true));
     public Setting<Integer> wasteAmount = this.register(new Setting<Integer>("UseAmount", 4, 1, 5));
     public Setting<Boolean> facePlaceSword = this.register(new Setting<Boolean>("FacePlaceSword", true));
@@ -75,7 +73,13 @@ public class AutoCrystal
     public Setting<Boolean> render = this.register(new Setting<Boolean>("Render", true));
     public Setting<Boolean> renderDmg = this.register(new Setting<Boolean>("RenderDmg", true));
     public Setting<Boolean> box = this.register(new Setting<Boolean>("Box", true));
+    private final Setting<Integer> red = this.register(new Setting<Integer>("Red", 0, 0, 255));
+    private final Setting<Integer> green = this.register(new Setting<Integer>("Green", 255, 0, 255));
+    private final Setting<Integer> blue = this.register(new Setting<Integer>("Blue", 0, 0, 255));
+    private final Setting<Integer> alpha = this.register(new Setting<Integer>("Alpha", 255, 0, 255));
+    private final Setting<Integer> boxAlpha = this.register(new Setting<Integer>("BoxAlpha", 125, 0, 255));
     public Setting<Boolean> outline = this.register(new Setting<Boolean>("Outline", true));
+    private final Setting<Float> lineWidth = this.register(new Setting<Float>("OutLineWidth", Float.valueOf(1.0f), Float.valueOf(0.1f), Float.valueOf(5.0f), v -> this.outline.getValue()));
     private final Setting<Integer> cRed = this.register(new Setting<Object>("OL-Red", Integer.valueOf(0), Integer.valueOf(0), Integer.valueOf(255), v -> this.outline.getValue()));
     private final Setting<Integer> cGreen = this.register(new Setting<Object>("OL-Green", Integer.valueOf(0), Integer.valueOf(0), Integer.valueOf(255), v -> this.outline.getValue()));
     private final Setting<Integer> cBlue = this.register(new Setting<Object>("OL-Blue", Integer.valueOf(255), Integer.valueOf(0), Integer.valueOf(255), v -> this.outline.getValue()));
@@ -84,6 +88,7 @@ public class AutoCrystal
     private EntityLivingBase target;
     private BlockPos pos;
     private int hotBarSlot;
+    private int lastSlot;
     private boolean armor;
     private boolean armorTarget;
     private int crystalCount;
@@ -96,8 +101,8 @@ public class AutoCrystal
     private float pitch = 0.0f;
     private boolean rotating = false;
 
-    public AutoCrystal() {
-        super("OyVey CA", "NiggaHack ac best ac", Module.Category.COMBAT, true, false, false);
+    public CrystalAura() {
+        super("CrystalAura", "ong", Module.Category.COMBAT, true, false, false);
     }
 
     public static List<BlockPos> getSphere(BlockPos loc, float r, int h, boolean hollow, boolean sphere, int plus_y) {
@@ -136,11 +141,21 @@ public class AutoCrystal
             packet.pitch = this.pitch;
             this.rotating = false;
         }
+        CPacketUseEntity packet;
+        if (event.getPacket() instanceof CPacketUseEntity && (packet = event.getPacket()).getAction() == CPacketUseEntity.Action.ATTACK && packet.getEntityFromWorld(mc.world) instanceof EntityEnderCrystal)
+            pos = packet.getEntityFromWorld(mc.world).getPosition();
+        if (event.getPacket() instanceof CPacketUseEntity && (packet = event.getPacket()).getAction() == CPacketUseEntity.Action.ATTACK && packet.getEntityFromWorld(mc.world) instanceof EntityEnderCrystal) {
+            EntityEnderCrystal crystal = (EntityEnderCrystal)packet.getEntityFromWorld(mc.world);
+        }
+        if (event.getStage() == 0 && event.getPacket() instanceof CPacketUseEntity && (packet = event.getPacket()).getAction() == CPacketUseEntity.Action.ATTACK && packet.getEntityFromWorld(mc.world) instanceof EntityEnderCrystal && this.fastMode.getValue() == FastMode.Ghost) {
+            (Objects.<Entity>requireNonNull(packet.getEntityFromWorld(mc.world))).setDead();
+            mc.world.removeEntityFromWorld(packet.entityId);
+        }
     }
 
     private void rotateTo(Entity entity) {
         if (this.rotate.getValue().booleanValue()) {
-            float[] angle = MathUtil.calcAngle(AutoCrystal.mc.player.getPositionEyes(mc.getRenderPartialTicks()), entity.getPositionVector());
+            float[] angle = MathUtil.calcAngle(CrystalAura.mc.player.getPositionEyes(mc.getRenderPartialTicks()), entity.getPositionVector());
             this.yaw = angle[0];
             this.pitch = angle[1];
             this.rotating = true;
@@ -149,7 +164,7 @@ public class AutoCrystal
 
     private void rotateToPos(BlockPos pos) {
         if (this.rotate.getValue().booleanValue()) {
-            float[] angle = MathUtil.calcAngle(AutoCrystal.mc.player.getPositionEyes(mc.getRenderPartialTicks()), new Vec3d((float) pos.getX() + 0.5f, (float) pos.getY() - 0.5f, (float) pos.getZ() + 0.5f));
+            float[] angle = MathUtil.calcAngle(CrystalAura.mc.player.getPositionEyes(mc.getRenderPartialTicks()), new Vec3d((float) pos.getX() + 0.5f, (float) pos.getY() - 0.5f, (float) pos.getZ() + 0.5f));
             this.yaw = angle[0];
             this.pitch = angle[1];
             this.rotating = true;
@@ -181,6 +196,9 @@ public class AutoCrystal
     @Override
     public void onTick() {
         this.onCrystal();
+    if (fastplace.getValue() && CrystalAura.mc.player.getHeldItemMainhand().getItem() == Items.END_CRYSTAL) {
+    CrystalAura.mc.rightClickDelayTimer = 0;
+        }
     }
 
     @Override
@@ -192,14 +210,14 @@ public class AutoCrystal
     }
 
     public void onCrystal() {
-        if (AutoCrystal.mc.world == null || AutoCrystal.mc.player == null) {
+        if (CrystalAura.mc.world == null || CrystalAura.mc.player == null) {
             return;
         }
         this.realTarget = null;
         this.manualBreaker();
         this.crystalCount = 0;
         if (!this.ignoreUseAmount.getValue().booleanValue()) {
-            for (Entity crystal : AutoCrystal.mc.world.loadedEntityList) {
+            for (Entity crystal : CrystalAura.mc.world.loadedEntityList) {
                 if (!(crystal instanceof EntityEnderCrystal) || !this.IsValidCrystal(crystal)) continue;
                 boolean count = false;
                 double damage = this.calculateDamage((double) this.target.getPosition().getX() + 0.5, (double) this.target.getPosition().getY() + 1.0, (double) this.target.getPosition().getZ() + 0.5, this.target);
@@ -211,12 +229,12 @@ public class AutoCrystal
             }
         }
         this.hotBarSlot = -1;
-        if (AutoCrystal.mc.player.getHeldItemOffhand().getItem() != Items.END_CRYSTAL) {
+        if (CrystalAura.mc.player.getHeldItemOffhand().getItem() != Items.END_CRYSTAL) {
             int crystalSlot;
-            int n = crystalSlot = AutoCrystal.mc.player.getHeldItemMainhand().getItem() == Items.END_CRYSTAL ? AutoCrystal.mc.player.inventory.currentItem : -1;
+            int n = crystalSlot = CrystalAura.mc.player.getHeldItemMainhand().getItem() == Items.END_CRYSTAL ? CrystalAura.mc.player.inventory.currentItem : -1;
             if (crystalSlot == -1) {
                 for (int l = 0; l < 9; ++l) {
-                    if (AutoCrystal.mc.player.inventory.getStackInSlot(l).getItem() != Items.END_CRYSTAL) continue;
+                    if (CrystalAura.mc.player.inventory.getStackInSlot(l).getItem() != Items.END_CRYSTAL) continue;
                     crystalSlot = l;
                     this.hotBarSlot = l;
                     break;
@@ -228,7 +246,7 @@ public class AutoCrystal
                 return;
             }
         }
-        if (AutoCrystal.mc.player.getHeldItemOffhand().getItem() == Items.GOLDEN_APPLE && AutoCrystal.mc.player.getHeldItemMainhand().getItem() != Items.END_CRYSTAL) {
+        if (CrystalAura.mc.player.getHeldItemOffhand().getItem() == Items.GOLDEN_APPLE && CrystalAura.mc.player.getHeldItemMainhand().getItem() != Items.END_CRYSTAL) {
             this.pos = null;
             this.target = null;
             return;
@@ -240,24 +258,29 @@ public class AutoCrystal
             this.crystal = null;
             return;
         }
-        if (this.target.getDistance(AutoCrystal.mc.player) > 12.0f) {
+        if (this.target.getDistance(CrystalAura.mc.player) > 12.0f) {
             this.crystal = null;
             this.target = null;
         }
-        this.crystal = AutoCrystal.mc.world.loadedEntityList.stream().filter(this::IsValidCrystal).map(p_Entity -> (EntityEnderCrystal) p_Entity).min(Comparator.comparing(p_Entity -> Float.valueOf(this.target.getDistance((Entity) p_Entity)))).orElse(null);
+        this.crystal = CrystalAura.mc.world.loadedEntityList.stream().filter(this::IsValidCrystal).map(p_Entity -> (EntityEnderCrystal) p_Entity).min(Comparator.comparing(p_Entity -> Float.valueOf(this.target.getDistance((Entity) p_Entity)))).orElse(null);
         if (this.crystal != null && this.explode.getValue().booleanValue() && this.breakTimer.passedMs(this.breakDelay.getValue().longValue())) {
             this.breakTimer.reset();
             if (this.packetBreak.getValue().booleanValue()) {
                 this.rotateTo(this.crystal);
-                AutoCrystal.mc.player.connection.sendPacket(new CPacketUseEntity(this.crystal));
+                CrystalAura.mc.player.connection.sendPacket(new CPacketUseEntity(this.crystal));
             } else {
                 this.rotateTo(this.crystal);
-                AutoCrystal.mc.playerController.attackEntity(AutoCrystal.mc.player, this.crystal);
+                CrystalAura.mc.playerController.attackEntity(CrystalAura.mc.player, this.crystal);
             }
             if (this.swingMode.getValue() == SwingMode.MainHand) {
-                AutoCrystal.mc.player.swingArm(EnumHand.MAIN_HAND);
+                CrystalAura.mc.player.swingArm(EnumHand.MAIN_HAND);
             } else if (this.swingMode.getValue() == SwingMode.OffHand) {
-                AutoCrystal.mc.player.swingArm(EnumHand.OFF_HAND);
+                CrystalAura.mc.player.swingArm(EnumHand.OFF_HAND);
+            } else if (this.swingMode.getValue() == SwingMode.Both) {
+                CrystalAura.mc.player.swingArm(EnumHand.OFF_HAND);
+            }
+            if (this.swingMode.getValue() == SwingMode.Both) {
+                CrystalAura.mc.player.swingArm(EnumHand.MAIN_HAND);
             }
         }
         if (this.placeTimer.passedMs(this.placeDelay.getValue().longValue()) && this.place.getValue().booleanValue()) {
@@ -266,7 +289,7 @@ public class AutoCrystal
             for (BlockPos blockPos : this.placePostions(this.placeRange.getValue().floatValue())) {
                 double selfDmg;
                 double targetRange;
-                if (blockPos == null || this.target == null || !AutoCrystal.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(blockPos)).isEmpty() || (targetRange = this.target.getDistance(blockPos.getX(), blockPos.getY(), blockPos.getZ())) > (double) this.targetRange.getValue().floatValue() || this.target.isDead || this.target.getHealth() + this.target.getAbsorptionAmount() <= 0.0f)
+                if (blockPos == null || this.target == null || !CrystalAura.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(blockPos)).isEmpty() || (targetRange = this.target.getDistance(blockPos.getX(), blockPos.getY(), blockPos.getZ())) > (double) this.targetRange.getValue().floatValue() || this.target.isDead || this.target.getHealth() + this.target.getAbsorptionAmount() <= 0.0f)
                     continue;
                 double targetDmg = this.calculateDamage((double) blockPos.getX() + 0.5, (double) blockPos.getY() + 1.0, (double) blockPos.getZ() + 0.5, this.target);
                 this.armor = false;
@@ -277,7 +300,7 @@ public class AutoCrystal
                     if (!((float) dmg <= this.minArmor.getValue().floatValue())) continue;
                     this.armor = true;
                 }
-                if (targetDmg < (double) this.minDamage.getValue().floatValue() && (this.facePlaceSword.getValue() != false ? this.target.getAbsorptionAmount() + this.target.getHealth() > this.facePlace.getValue().floatValue() : AutoCrystal.mc.player.getHeldItemMainhand().getItem() instanceof ItemSword || this.target.getAbsorptionAmount() + this.target.getHealth() > this.facePlace.getValue().floatValue()) && (this.facePlaceSword.getValue() != false ? !this.armor : AutoCrystal.mc.player.getHeldItemMainhand().getItem() instanceof ItemSword || !this.armor) || (selfDmg = this.calculateDamage((double) blockPos.getX() + 0.5, (double) blockPos.getY() + 1.0, (double) blockPos.getZ() + 0.5, AutoCrystal.mc.player)) + (this.suicide.getValue() != false ? 2.0 : 0.5) >= (double) (AutoCrystal.mc.player.getHealth() + AutoCrystal.mc.player.getAbsorptionAmount()) && selfDmg >= targetDmg && targetDmg < (double) (this.target.getHealth() + this.target.getAbsorptionAmount()) || !(damage < targetDmg))
+                if (targetDmg < (double) this.minDamage.getValue().floatValue() && (this.facePlaceSword.getValue() != false ? this.target.getAbsorptionAmount() + this.target.getHealth() > this.facePlace.getValue().floatValue() : CrystalAura.mc.player.getHeldItemMainhand().getItem() instanceof ItemSword || this.target.getAbsorptionAmount() + this.target.getHealth() > this.facePlace.getValue().floatValue()) && (this.facePlaceSword.getValue() != false ? !this.armor : CrystalAura.mc.player.getHeldItemMainhand().getItem() instanceof ItemSword || !this.armor) || (selfDmg = this.calculateDamage((double) blockPos.getX() + 0.5, (double) blockPos.getY() + 1.0, (double) blockPos.getZ() + 0.5, CrystalAura.mc.player)) + (this.suicide.getValue() != false ? 2.0 : 0.5) >= (double) (CrystalAura.mc.player.getHealth() + CrystalAura.mc.player.getAbsorptionAmount()) && selfDmg >= targetDmg && targetDmg < (double) (this.target.getHealth() + this.target.getAbsorptionAmount()) || !(damage < targetDmg))
                     continue;
                 this.pos = blockPos;
                 damage = targetDmg;
@@ -290,11 +313,28 @@ public class AutoCrystal
             }
             this.realTarget = this.target;
             if (AutoGG.getINSTANCE().isOn()) {
-                AutoGG autoGG = (AutoGG) OyVey.moduleManager.getModuleByName("AutoGG");
+                AutoGG autoGG = (AutoGG) Quantum.moduleManager.getModuleByName("AutoGG");
                 autoGG.addTargetedPlayer(this.target.getName());
             }
-            if (this.hotBarSlot != -1 && this.autoswitch.getValue().booleanValue() && !AutoCrystal.mc.player.isPotionActive(MobEffects.WEAKNESS)) {
-                AutoCrystal.mc.player.inventory.currentItem = this.hotBarSlot;
+            if (this.hotBarSlot != -1 && this.switchMode.getValue() == SwitchMode.Normal) {
+                CrystalAura.mc.player.inventory.currentItem = this.hotBarSlot;
+            }
+            int swordSlot = InventoryUtil.findHotbarBlock(ItemSword.class);
+            if (this.awMode.getValue() == AWMode.Normal && mc.player.isPotionActive(MobEffects.WEAKNESS)) {
+            mc.player.inventory.currentItem = swordSlot;
+               } else {
+            if (this.awMode.getValue() == AWMode.Silent && mc.player.isPotionActive(MobEffects.WEAKNESS)) {
+            mc.getConnection().sendPacket(new CPacketHeldItemChange(swordSlot));
+                }
+            }
+            int n = InventoryUtil.findHotbarBlock(ItemEndCrystal.class);
+            int n3 = CrystalAura.mc.player.inventory.currentItem;
+            EnumHand enumHand = null;
+            if (this.switchMode.getValue() == SwitchMode.Silent) {
+                if (CrystalAura.mc.player.isHandActive()) {
+                    enumHand = CrystalAura.mc.player.getActiveHand();
+                }
+                CrystalAura.mc.player.connection.sendPacket((Packet)new CPacketHeldItemChange(n));
             }
             if (!this.ignoreUseAmount.getValue().booleanValue()) {
                 int crystalLimit = this.wasteAmount.getValue();
@@ -306,11 +346,11 @@ public class AutoCrystal
                 }
                 if (this.crystalCount < crystalLimit && this.pos != null) {
                     this.rotateToPos(this.pos);
-                    AutoCrystal.mc.player.connection.sendPacket(new CPacketPlayerTryUseItemOnBlock(this.pos, EnumFacing.UP, AutoCrystal.mc.player.getHeldItemOffhand().getItem() == Items.END_CRYSTAL ? EnumHand.OFF_HAND : EnumHand.MAIN_HAND, 0.0f, 0.0f, 0.0f));
+                    CrystalAura.mc.player.connection.sendPacket(new CPacketPlayerTryUseItemOnBlock(this.pos, EnumFacing.UP, CrystalAura.mc.player.getHeldItemOffhand().getItem() == Items.END_CRYSTAL ? EnumHand.OFF_HAND : EnumHand.MAIN_HAND, 0.0f, 0.0f, 0.0f));
                 }
             } else if (this.pos != null) {
                 this.rotateToPos(this.pos);
-                AutoCrystal.mc.player.connection.sendPacket(new CPacketPlayerTryUseItemOnBlock(this.pos, EnumFacing.UP, AutoCrystal.mc.player.getHeldItemOffhand().getItem() == Items.END_CRYSTAL ? EnumHand.OFF_HAND : EnumHand.MAIN_HAND, 0.0f, 0.0f, 0.0f));
+                CrystalAura.mc.player.connection.sendPacket(new CPacketPlayerTryUseItemOnBlock(this.pos, EnumFacing.UP, CrystalAura.mc.player.getHeldItemOffhand().getItem() == Items.END_CRYSTAL ? EnumHand.OFF_HAND : EnumHand.MAIN_HAND, 0.0f, 0.0f, 0.0f));
             }
         }
     }
@@ -325,7 +365,7 @@ public class AutoCrystal
             CPacketUseEntity predict = new CPacketUseEntity();
             predict.entityId = packet.getEntityID();
             predict.action = CPacketUseEntity.Action.ATTACK;
-            AutoCrystal.mc.player.connection.sendPacket(predict);
+            CrystalAura.mc.player.connection.sendPacket(predict);
         }
     }
 
@@ -342,19 +382,22 @@ public class AutoCrystal
 
     private boolean isPredicting(SPacketSpawnObject packet) {
         BlockPos packPos = new BlockPos(packet.getX(), packet.getY(), packet.getZ());
-        if (AutoCrystal.mc.player.getDistance(packet.getX(), packet.getY(), packet.getZ()) > (double) this.breakRange.getValue().floatValue()) {
+        if (CrystalAura.mc.player.getDistance(packet.getX(), packet.getY(), packet.getZ()) > (double) this.breakRange.getValue().floatValue()) {
             return false;
         }
-        if (!this.canSeePos(packPos) && AutoCrystal.mc.player.getDistance(packet.getX(), packet.getY(), packet.getZ()) > (double) this.breakWallRange.getValue().floatValue()) {
+        if (!this.canSeePos(packPos) && CrystalAura.mc.player.getDistance(packet.getX(), packet.getY(), packet.getZ()) > (double) this.breakWallRange.getValue().floatValue()) {
+            return false;
+        }
+        if (!this.canSeePos(packPos) && CrystalAura.mc.player.getDistance(packet.getX(), packet.getY(), packet.getZ()) > (double) this.placeWallRange.getValue().floatValue()) {
             return false;
         }
         double targetDmg = this.calculateDamage(packet.getX() + 0.5, packet.getY() + 1.0, packet.getZ() + 0.5, this.target);
-        if (EntityUtil.isInHole(AutoCrystal.mc.player) && targetDmg >= 1.0) {
+        if (EntityUtil.isInHole(CrystalAura.mc.player) && targetDmg >= 1.0) {
             return true;
         }
-        double selfDmg = this.calculateDamage(packet.getX() + 0.5, packet.getY() + 1.0, packet.getZ() + 0.5, AutoCrystal.mc.player);
+        double selfDmg = this.calculateDamage(packet.getX() + 0.5, packet.getY() + 1.0, packet.getZ() + 0.5, CrystalAura.mc.player);
         double d = this.suicide.getValue() != false ? 2.0 : 0.5;
-        if (selfDmg + d < (double) (AutoCrystal.mc.player.getHealth() + AutoCrystal.mc.player.getAbsorptionAmount()) && targetDmg >= (double) (this.target.getAbsorptionAmount() + this.target.getHealth())) {
+        if (selfDmg + d < (double) (CrystalAura.mc.player.getHealth() + CrystalAura.mc.player.getAbsorptionAmount()) && targetDmg >= (double) (this.target.getAbsorptionAmount() + this.target.getHealth())) {
             return true;
         }
         this.armorTarget = false;
@@ -381,22 +424,25 @@ public class AutoCrystal
         if (this.target == null) {
             return false;
         }
-        if (p_Entity.getDistance(AutoCrystal.mc.player) > this.breakRange.getValue().floatValue()) {
+        if (p_Entity.getDistance(CrystalAura.mc.player) > this.breakRange.getValue().floatValue()) {
             return false;
         }
-        if (!AutoCrystal.mc.player.canEntityBeSeen(p_Entity) && p_Entity.getDistance(AutoCrystal.mc.player) > this.breakWallRange.getValue().floatValue()) {
+        if (!CrystalAura.mc.player.canEntityBeSeen(p_Entity) && p_Entity.getDistance(CrystalAura.mc.player) > this.breakWallRange.getValue().floatValue()) {
+            return false;
+        }
+        if (!CrystalAura.mc.player.canEntityBeSeen(p_Entity) && p_Entity.getDistance(CrystalAura.mc.player) > this.placeWallRange.getValue().floatValue()) {
             return false;
         }
         if (this.target.isDead || this.target.getHealth() + this.target.getAbsorptionAmount() <= 0.0f) {
             return false;
         }
         double targetDmg = this.calculateDamage((double) p_Entity.getPosition().getX() + 0.5, (double) p_Entity.getPosition().getY() + 1.0, (double) p_Entity.getPosition().getZ() + 0.5, this.target);
-        if (EntityUtil.isInHole(AutoCrystal.mc.player) && targetDmg >= 1.0) {
+        if (EntityUtil.isInHole(CrystalAura.mc.player) && targetDmg >= 1.0) {
             return true;
         }
-        double selfDmg = this.calculateDamage((double) p_Entity.getPosition().getX() + 0.5, (double) p_Entity.getPosition().getY() + 1.0, (double) p_Entity.getPosition().getZ() + 0.5, AutoCrystal.mc.player);
+        double selfDmg = this.calculateDamage((double) p_Entity.getPosition().getX() + 0.5, (double) p_Entity.getPosition().getY() + 1.0, (double) p_Entity.getPosition().getZ() + 0.5, CrystalAura.mc.player);
         double d = this.suicide.getValue() != false ? 2.0 : 0.5;
-        if (selfDmg + d < (double) (AutoCrystal.mc.player.getHealth() + AutoCrystal.mc.player.getAbsorptionAmount()) && targetDmg >= (double) (this.target.getAbsorptionAmount() + this.target.getHealth())) {
+        if (selfDmg + d < (double) (CrystalAura.mc.player.getHealth() + CrystalAura.mc.player.getAbsorptionAmount()) && targetDmg >= (double) (this.target.getAbsorptionAmount() + this.target.getHealth())) {
             return true;
         }
         this.armorTarget = false;
@@ -415,8 +461,8 @@ public class AutoCrystal
 
     EntityPlayer getTarget() {
         EntityPlayer closestPlayer = null;
-        for (EntityPlayer entity : AutoCrystal.mc.world.playerEntities) {
-            if (AutoCrystal.mc.player == null || AutoCrystal.mc.player.isDead || entity.isDead || entity == AutoCrystal.mc.player || OyVey.friendManager.isFriend(entity.getName()) || entity.getDistance(AutoCrystal.mc.player) > 12.0f)
+        for (EntityPlayer entity : CrystalAura.mc.world.playerEntities) {
+            if (CrystalAura.mc.player == null || CrystalAura.mc.player.isDead || entity.isDead || entity == CrystalAura.mc.player || Quantum.friendManager.isFriend(entity.getName()) || entity.getDistance(CrystalAura.mc.player) > 12.0f)
                 continue;
             this.armorTarget = false;
             for (ItemStack is : entity.getArmorInventoryList()) {
@@ -432,7 +478,7 @@ public class AutoCrystal
                 closestPlayer = entity;
                 continue;
             }
-            if (!(closestPlayer.getDistance(AutoCrystal.mc.player) > entity.getDistance(AutoCrystal.mc.player)))
+            if (!(closestPlayer.getDistance(CrystalAura.mc.player) > entity.getDistance(CrystalAura.mc.player)))
                 continue;
             closestPlayer = entity;
         }
@@ -441,25 +487,25 @@ public class AutoCrystal
 
     private void manualBreaker() {
         RayTraceResult result;
-        if (this.manualTimer.passedMs(200L) && AutoCrystal.mc.gameSettings.keyBindUseItem.isKeyDown() && AutoCrystal.mc.player.getHeldItemOffhand().getItem() != Items.GOLDEN_APPLE && AutoCrystal.mc.player.inventory.getCurrentItem().getItem() != Items.GOLDEN_APPLE && AutoCrystal.mc.player.inventory.getCurrentItem().getItem() != Items.BOW && AutoCrystal.mc.player.inventory.getCurrentItem().getItem() != Items.EXPERIENCE_BOTTLE && (result = AutoCrystal.mc.objectMouseOver) != null) {
+        if (this.manualTimer.passedMs(200L) && CrystalAura.mc.gameSettings.keyBindUseItem.isKeyDown() && CrystalAura.mc.player.getHeldItemOffhand().getItem() != Items.GOLDEN_APPLE && CrystalAura.mc.player.inventory.getCurrentItem().getItem() != Items.GOLDEN_APPLE && CrystalAura.mc.player.inventory.getCurrentItem().getItem() != Items.BOW && CrystalAura.mc.player.inventory.getCurrentItem().getItem() != Items.EXPERIENCE_BOTTLE && (result = CrystalAura.mc.objectMouseOver) != null) {
             if (result.typeOfHit.equals(RayTraceResult.Type.ENTITY)) {
                 Entity entity = result.entityHit;
                 if (entity instanceof EntityEnderCrystal) {
                     if (this.packetBreak.getValue().booleanValue()) {
-                        AutoCrystal.mc.player.connection.sendPacket(new CPacketUseEntity(entity));
+                        CrystalAura.mc.player.connection.sendPacket(new CPacketUseEntity(entity));
                     } else {
-                        AutoCrystal.mc.playerController.attackEntity(AutoCrystal.mc.player, entity);
+                        CrystalAura.mc.playerController.attackEntity(CrystalAura.mc.player, entity);
                     }
                     this.manualTimer.reset();
                 }
             } else if (result.typeOfHit.equals(RayTraceResult.Type.BLOCK)) {
-                BlockPos mousePos = new BlockPos(AutoCrystal.mc.objectMouseOver.getBlockPos().getX(), (double) AutoCrystal.mc.objectMouseOver.getBlockPos().getY() + 1.0, AutoCrystal.mc.objectMouseOver.getBlockPos().getZ());
-                for (Entity target : AutoCrystal.mc.world.getEntitiesWithinAABBExcludingEntity(null, new AxisAlignedBB(mousePos))) {
+                BlockPos mousePos = new BlockPos(CrystalAura.mc.objectMouseOver.getBlockPos().getX(), (double) CrystalAura.mc.objectMouseOver.getBlockPos().getY() + 1.0, CrystalAura.mc.objectMouseOver.getBlockPos().getZ());
+                for (Entity target : CrystalAura.mc.world.getEntitiesWithinAABBExcludingEntity(null, new AxisAlignedBB(mousePos))) {
                     if (!(target instanceof EntityEnderCrystal)) continue;
                     if (this.packetBreak.getValue().booleanValue()) {
-                        AutoCrystal.mc.player.connection.sendPacket(new CPacketUseEntity(target));
+                        CrystalAura.mc.player.connection.sendPacket(new CPacketUseEntity(target));
                     } else {
-                        AutoCrystal.mc.playerController.attackEntity(AutoCrystal.mc.player, target);
+                        CrystalAura.mc.playerController.attackEntity(CrystalAura.mc.player, target);
                     }
                     this.manualTimer.reset();
                 }
@@ -468,12 +514,12 @@ public class AutoCrystal
     }
 
     private boolean canSeePos(BlockPos pos) {
-        return AutoCrystal.mc.world.rayTraceBlocks(new Vec3d(AutoCrystal.mc.player.posX, AutoCrystal.mc.player.posY + (double) AutoCrystal.mc.player.getEyeHeight(), AutoCrystal.mc.player.posZ), new Vec3d(pos.getX(), pos.getY(), pos.getZ()), false, true, false) == null;
+        return CrystalAura.mc.world.rayTraceBlocks(new Vec3d(CrystalAura.mc.player.posX, CrystalAura.mc.player.posY + (double) CrystalAura.mc.player.getEyeHeight(), CrystalAura.mc.player.posZ), new Vec3d(pos.getX(), pos.getY(), pos.getZ()), false, true, false) == null;
     }
 
     private NonNullList<BlockPos> placePostions(float placeRange) {
         NonNullList positions = NonNullList.create();
-        positions.addAll(AutoCrystal.getSphere(new BlockPos(Math.floor(AutoCrystal.mc.player.posX), Math.floor(AutoCrystal.mc.player.posY), Math.floor(AutoCrystal.mc.player.posZ)), placeRange, (int) placeRange, false, true, 0).stream().filter(pos -> this.canPlaceCrystal(pos, true)).collect(Collectors.toList()));
+        positions.addAll(CrystalAura.getSphere(new BlockPos(Math.floor(CrystalAura.mc.player.posX), Math.floor(CrystalAura.mc.player.posY), Math.floor(CrystalAura.mc.player.posZ)), placeRange, (int) placeRange, false, true, 0).stream().filter(pos -> this.canPlaceCrystal(pos, true)).collect(Collectors.toList()));
         return positions;
     }
 
@@ -482,34 +528,34 @@ public class AutoCrystal
         BlockPos boost2 = blockPos.add(0, 2, 0);
         try {
             if (!this.opPlace.getValue().booleanValue()) {
-                if (AutoCrystal.mc.world.getBlockState(blockPos).getBlock() != Blocks.BEDROCK && AutoCrystal.mc.world.getBlockState(blockPos).getBlock() != Blocks.OBSIDIAN) {
+                if (CrystalAura.mc.world.getBlockState(blockPos).getBlock() != Blocks.BEDROCK && CrystalAura.mc.world.getBlockState(blockPos).getBlock() != Blocks.OBSIDIAN) {
                     return false;
                 }
-                if (AutoCrystal.mc.world.getBlockState(boost).getBlock() != Blocks.AIR || AutoCrystal.mc.world.getBlockState(boost2).getBlock() != Blocks.AIR) {
+                if (CrystalAura.mc.world.getBlockState(boost).getBlock() != Blocks.AIR || CrystalAura.mc.world.getBlockState(boost2).getBlock() != Blocks.AIR) {
                     return false;
                 }
                 if (!specialEntityCheck) {
-                    return AutoCrystal.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(boost)).isEmpty() && AutoCrystal.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(boost2)).isEmpty();
+                    return CrystalAura.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(boost)).isEmpty() && CrystalAura.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(boost2)).isEmpty();
                 }
-                for (Entity entity : AutoCrystal.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(boost))) {
+                for (Entity entity : CrystalAura.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(boost))) {
                     if (entity instanceof EntityEnderCrystal) continue;
                     return false;
                 }
-                for (Entity entity : AutoCrystal.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(boost2))) {
+                for (Entity entity : CrystalAura.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(boost2))) {
                     if (entity instanceof EntityEnderCrystal) continue;
                     return false;
                 }
             } else {
-                if (AutoCrystal.mc.world.getBlockState(blockPos).getBlock() != Blocks.BEDROCK && AutoCrystal.mc.world.getBlockState(blockPos).getBlock() != Blocks.OBSIDIAN) {
+                if (CrystalAura.mc.world.getBlockState(blockPos).getBlock() != Blocks.BEDROCK && CrystalAura.mc.world.getBlockState(blockPos).getBlock() != Blocks.OBSIDIAN) {
                     return false;
                 }
-                if (AutoCrystal.mc.world.getBlockState(boost).getBlock() != Blocks.AIR) {
+                if (CrystalAura.mc.world.getBlockState(boost).getBlock() != Blocks.AIR) {
                     return false;
                 }
                 if (!specialEntityCheck) {
-                    return AutoCrystal.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(boost)).isEmpty();
+                    return CrystalAura.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(boost)).isEmpty();
                 }
-                for (Entity entity : AutoCrystal.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(boost))) {
+                for (Entity entity : CrystalAura.mc.world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(boost))) {
                     if (entity instanceof EntityEnderCrystal) continue;
                     return false;
                 }
@@ -534,9 +580,26 @@ public class AutoCrystal
         float damage = (int) ((v * v + v) / 2.0 * 7.0 * 12.0 + 1.0);
         double finald = 1.0;
         if (entity instanceof EntityLivingBase) {
-            finald = this.getBlastReduction((EntityLivingBase) entity, this.getDamageMultiplied(damage), new Explosion(AutoCrystal.mc.world, null, posX, posY, posZ, 6.0f, false, true));
+            finald = this.getBlastReduction((EntityLivingBase) entity, this.getDamageMultiplied(damage), new Explosion(CrystalAura.mc.world, null, posX, posY, posZ, 6.0f, false, true));
         }
         return (float) finald;
+    }
+
+    @SubscribeEvent(priority=EventPriority.HIGH, receiveCanceled=true)
+    public void onSoundPacket(PacketEvent.Receive receive) {
+        SPacketSoundEffect sPacketSoundEffect;
+        if (CrystalAura.fullNullCheck()) {
+            return;
+        }
+        if (receive.getPacket() instanceof SPacketSoundEffect && this.fastMode.getValue() == FastMode.Sound && (sPacketSoundEffect = (SPacketSoundEffect)receive.getPacket()).getCategory() == SoundCategory.BLOCKS && sPacketSoundEffect.getSound() == SoundEvents.ENTITY_GENERIC_EXPLODE) {
+            ArrayList arrayList = new ArrayList(CrystalAura.mc.world.loadedEntityList);
+            int n = arrayList.size();
+            for (int i = 0; i < n; ++i) {
+                Entity entity = (Entity)arrayList.get(i);
+                if (!(entity instanceof EntityEnderCrystal) || !(entity.getDistanceSq(sPacketSoundEffect.getX(), sPacketSoundEffect.getY(), sPacketSoundEffect.getZ()) < 36.0)) continue;
+                entity.setDead();
+            }
+        }
     }
 
     private float getBlastReduction(EntityLivingBase entity, float damageI, Explosion explosion) {
@@ -564,15 +627,36 @@ public class AutoCrystal
     }
 
     private float getDamageMultiplied(float damage) {
-        int diff = AutoCrystal.mc.world.getDifficulty().getId();
+        int diff = CrystalAura.mc.world.getDifficulty().getId();
         return damage * (diff == 0 ? 0.0f : (diff == 2 ? 1.0f : (diff == 1 ? 0.5f : 1.5f)));
     }
 
     public enum SwingMode {
         MainHand,
         OffHand,
-        None
+        Both,
+        None;
+
+    }
+
+    public static enum FastMode {
+        Ignore,
+        Sound,
+        Ghost;
+
+    }
+
+    public static enum SwitchMode {
+        None,
+        Normal,
+        Silent;
+
+    }
+
+    public static enum AWMode {
+        None,
+        Normal,
+        Silent;
 
     }
 }
-
